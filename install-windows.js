@@ -43,7 +43,7 @@ let projectName = gitRepo.split('/')[4].replace('.git', '');
 let client = projectName.split('_')[0];
 let project = projectName.split('_')[1];
 // Repalce dashes to underscores for DB name
-let dbName = projectName.replace('-', '_');
+let dbName = projectName.replaceAll('-', '_');
 
 // Clone repo
 let gitClonePromise = new Promise((resolve, reject) => {
