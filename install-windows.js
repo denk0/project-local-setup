@@ -14,7 +14,8 @@ let port = 8081;
 dockerPorts = new Promise((resolve, reject) => {
     let dockerContainers = exec(`docker ps -a`, (error, stdout) => {
         let output = stdout.split('\n');
-        let containers = output.slice(1, output.length -1);
+        let containers = output.slice(1, output.length - 1);
+
         function getAccessiblePort(port) {
             return containers.every(container => !container.includes(String(port))) ? port : getAccessiblePort(++port);
         }
@@ -43,7 +44,8 @@ let projectName = gitRepo.split('/')[4].replace('.git', '');
 let client = projectName.split('_')[0];
 let project = projectName.split('_')[1];
 // Repalce dashes to underscores for DB name
-let dbName = projectName.replaceAll('-', '_');
+let dbFileName = projectName.replaceAll('-', '_');
+let dbName = `${client.slice(0, 7)}_${project.slice(0, 7)}`.replaceAll('-', '_');
 
 // Clone repo
 let gitClonePromise = new Promise((resolve, reject) => {
@@ -101,7 +103,7 @@ let importInstallSQL = new Promise((resolve, reject) => {
 // Import database from cloned repo
 let importDbFromRepo = new Promise((resolve, reject) => {
     importInstallSQL.then(() => {
-        let dockerSqlImport = exec(`docker exec -i mysql mysql -uroot -proot --force ${dbName} < ${projectName}/wp-database/${dbName}.sql`);
+        let dockerSqlImport = exec(`docker exec -i mysql mysql -uroot -proot --force ${dbName} < ${projectName}/wp-database/${dbFileName}.sql`);
         dockerSqlImport.stderr.on('data', (data) => {
             console.log('docker: database from git repo has not imported or imported with: ', data);
             resolve();
@@ -132,7 +134,7 @@ let createDumpUpdateFiles = new Promise((resolve, reject) => {
         exec(`chmod +x ${projectName}/wp-database/srdb.cli.php`);
         console.log('fs: srdb.cli.php chmod - success');
 
-        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbName}.sql`, function(err) {
+        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbFileName}.sql`, function(err) {
             if (err) {
                 return console.log(err);
             }
