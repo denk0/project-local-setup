@@ -1,23 +1,18 @@
 const path = require('path');
 const exec = require('child_process').exec;
 const fs = require('fs');
-
 String.prototype.replaceAll = function(search, replacement) {
     var target = this;
     return target.split(search).join(replacement);
 };
-
 // Get git repo url from arguments
 let gitRepo = process.argv[2];
-
 // Get port if its passed as argument
 let port = 8081;
-
 dockerPorts = new Promise((resolve, reject) => {
     let dockerContainers = exec(`docker ps -a`, (error, stdout) => {
         let output = stdout.split('\n');
         let containers = output.slice(1, output.length - 1);
-
         function getAccessiblePort(port) {
             return containers.every(container => !container.includes(String(port))) ? port : getAccessiblePort(++port);
         }
@@ -26,7 +21,6 @@ dockerPorts = new Promise((resolve, reject) => {
             console.log('Docker error: ' + error);
         }
     });
-
     dockerContainers.on('close', (code) => {
         if (code === 0) {
             console.log(`Docker: Ready to install your project!`);
@@ -38,21 +32,15 @@ dockerPorts = new Promise((resolve, reject) => {
         }
     });
 });
-
-
-
 // Extract project name from git url
 let projectName = gitRepo.split('/')[4].replace('.git', '');
 let client = projectName.split('_')[0];
 let project = projectName.split('_')[1];
 // Repalce dashes to underscores for DB name
-let dbFileName = projectName.replaceAll('-', '_');
 let dbName = `${client.slice(0, 7)}_${project.slice(0, 7)}`.replaceAll('-', '_');
-
 // Clone repo
 let gitClonePromise = new Promise((resolve, reject) => {
     let cloneTask = exec(`git clone ${gitRepo} ${projectName}`);
-
     cloneTask.stderr.on('data', (data) => {
         console.log(`git: ${data}`);
     });
@@ -105,7 +93,7 @@ let importInstallSQL = new Promise((resolve, reject) => {
 // Import database from cloned repo
 let importDbFromRepo = new Promise((resolve, reject) => {
     importInstallSQL.then(() => {
-        let dockerSqlImport = exec(`docker exec -i mysql mysql -uroot -proot --force ${dbName} < ${projectName}/wp-database/${dbFileName}.sql`);
+        let dockerSqlImport = exec(`docker exec -i mysql mysql -uroot -proot --force ${dbName} < ${projectName}/wp-database/${dbName}.sql`);
         dockerSqlImport.stderr.on('data', (data) => {
             console.log('docker: database from git repo has not imported', data);
             resolve();
@@ -120,7 +108,6 @@ let importDbFromRepo = new Promise((resolve, reject) => {
 let wordpressSetup = new Promise((resolve, reject) => {
     importDbFromRepo.then(() => {
         let dockerWordpressSetup = exec(`docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root -e WORDPRESS_DB_NAME=${dbName} -d --name ${projectName} --link mysql:mysql -p ${port}:80 -v "$PWD/${projectName}":/var/www/html  wordpress`);
-
         dockerWordpressSetup.on('close', (code) => {
             if (code === 0) {
                 console.log('docker: Wordpress container created successfully');
@@ -134,15 +121,13 @@ let createDumpUpdateFiles = new Promise((resolve, reject) => {
     wordpressSetup.then(() => {
         exec(`chmod +x ${projectName}/wp-database/srdb.cli.php`);
         console.log('fs: srdb.cli.php chmod - success');
-
-        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbFileName}.sql`, function(err) {
+        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbName}.sql`, function(err) {
             if (err) {
                 return console.log(err);
             }
         });
         exec(`chmod +x ${projectName}/dumpdb.sh`);
         console.log('fs: dumpdb.sh created');
-
         fs.writeFileSync(`${projectName}/wp-database/port.php`, `<?php $port = ${port} ?>`, (err) => {
             if (err) {
                 return console.log(err);
@@ -152,13 +137,11 @@ let createDumpUpdateFiles = new Promise((resolve, reject) => {
         resolve();
     });
 });
-
 // Run SRDB and create updatedb.sh
 let srdDbRoutine = new Promise((resolve, reject) => {
     createDumpUpdateFiles.then(() => {
         // Check --port=3306
-        let srdbScript = `docker exec -d ${projectName} php ${projectName}/wp-database/srdb.cli.php -h mysql --port=3306 -u root -p root -n ${dbName} -s "http://git.beetroot.se:8081/${client}/${project}" -r "http://localhost:${port}"`;
-
+        let srdbScript = `docker exec -d ${projectName} php /var/www/html/wp-database/srdb.cli.php -h mysql --port=3306 -u root -p root -n ${dbName} -s "http://git.beetroot.se:8081/${client}/${project}" -r "http://localhost:${port}"`;
         fs.writeFileSync(`${projectName}/updatedb.sh`, srdbScript, function(err) {
             if (err) {
                 return console.log(err);
@@ -166,12 +149,10 @@ let srdDbRoutine = new Promise((resolve, reject) => {
         });
         exec(`chmod +x ${projectName}/updatedb.sh`);
         console.log('fs: updatedb.sh created');
-
         let srdbRun = exec(srdbScript);
         srdbRun.stdout.on('data', (data) => {
             console.log(`stdout: ${data}`);
         });
-
         srdbRun.stderr.on('data', (data) => {
             console.log(`stderr: ${data}`);
         });
