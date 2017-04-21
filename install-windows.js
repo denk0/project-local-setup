@@ -44,7 +44,6 @@ let projectName = gitRepo.split('/')[4].replace('.git', '');
 let client = projectName.split('_')[0];
 let project = projectName.split('_')[1];
 // Repalce dashes to underscores for DB name
-let dbFileName = projectName.replaceAll('-', '_');
 let dbName = `${client.slice(0, 7)}_${project.slice(0, 7)}`.replaceAll('-', '_');
 
 // Clone repo
@@ -74,7 +73,6 @@ let createInstallSQL = new Promise((resolve, reject) => {
             if (err) {
                 reject();
                 return console.log(err);
-                process.exit();
             }
         });
         console.log("fs: install.sql created successfully");
@@ -103,7 +101,7 @@ let importInstallSQL = new Promise((resolve, reject) => {
 // Import database from cloned repo
 let importDbFromRepo = new Promise((resolve, reject) => {
     importInstallSQL.then(() => {
-        let dockerSqlImport = exec(`docker exec -i mysql mysql -uroot -proot --force ${dbName} < ${projectName}/wp-database/${dbFileName}.sql`);
+        let dockerSqlImport = exec(`docker exec -i mysql mysql -uroot -proot --force ${dbName} < ${projectName}/wp-database/${dbName}.sql`);
         dockerSqlImport.stderr.on('data', (data) => {
             console.log('docker: database from git repo has not imported or imported with: ', data);
             resolve();
@@ -117,8 +115,8 @@ let importDbFromRepo = new Promise((resolve, reject) => {
 // Install Docker Wordpress
 let wordpressSetup = new Promise((resolve, reject) => {
     importDbFromRepo.then(() => {
-        let PWD = __dirname.replace('C:', 'c').replaceAll('\\', '/');
-        let dockerWordpressSetup = exec(`docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root -e WORDPRESS_DB_NAME=${dbName} -d --name ${projectName} --link mysql:mysql -p ${port}:80 -v /${PWD}/${projectName}:/var/www/html  wordpress`);
+        let PWD = __dirname;
+        let dockerWordpressSetup = exec(`docker run -e WORDPRESS_DB_USER=root -e WORDPRESS_DB_PASSWORD=root -e WORDPRESS_DB_NAME=${dbName} -d --name ${projectName} --link mysql:mysql -p ${port}:80 -v ${PWD}\\${projectName}:/var/www/html  wordpress`);
 
         dockerWordpressSetup.on('close', (code) => {
             if (code === 0) {
@@ -134,7 +132,7 @@ let createDumpUpdateFiles = new Promise((resolve, reject) => {
         exec(`chmod +x ${projectName}/wp-database/srdb.cli.php`);
         console.log('fs: srdb.cli.php chmod - success');
 
-        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbFileName}.sql`, function(err) {
+        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbName}.sql`, function(err) {
             if (err) {
                 return console.log(err);
             }
@@ -156,7 +154,7 @@ let createDumpUpdateFiles = new Promise((resolve, reject) => {
 let srdDbRoutine = new Promise((resolve, reject) => {
     createDumpUpdateFiles.then(() => {
         // Check --port=3306
-        let srdbScript = `docker exec -d ${projectName} php ${projectName}/wp-database/srdb.cli.php -h mysql --port=3306 -u root -p root -n ${dbName} -s "http://git.beetroot.se:8081/${client}/${project}" -r "http://localhost:${port}"`;
+        let srdbScript = `docker exec -d ${projectName} php /var/www/html/wp-database/srdb.cli.php -h mysql --port=3306 -u root -p root -n ${dbName} -s "http://git.beetroot.se:8081/${client}/${project}" -r "http://localhost:${port}"`;
 
         fs.writeFileSync(`${projectName}/updatedb.sh`, srdbScript, function(err) {
             if (err) {
