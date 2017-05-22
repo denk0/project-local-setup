@@ -132,7 +132,10 @@ let createDumpUpdateFiles = new Promise((resolve, reject) => {
         exec(`chmod +x ${projectName}/wp-database/srdb.cli.php`);
         console.log('fs: srdb.cli.php chmod - success');
 
-        fs.writeFileSync(`${projectName}/dumpdb.sh`, `docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbName}.sql`, function(err) {
+        fs.writeFileSync(`${projectName}/dumpdb.sh`, `alter_tables=$(docker exec -i mysql mysql -uroot -proot <<< 'SELECT CONCAT("ALTER TABLE ", TABLE_NAME," CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci") AS \`SET sql_mode = ""; USE ${dbName};\` FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="${dbName}" AND TABLE_TYPE="BASE TABLE"');
+alter_tables=(\$\{alter_tables\/\/'utf8_general_ci'\/utf8_general_ci; \});
+docker exec -i mysql mysql -uroot -proot <<< \$\{alter_tables[@]\};
+docker exec -i mysql mysqldump -uroot -proot ${dbName} > wp-database/${dbName}.sql`, function(err) {
             if (err) {
                 return console.log(err);
             }
