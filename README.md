@@ -3,6 +3,7 @@
 <ul>
     <li>Open terminal as administrator from <code>sites/</code> folder.</li>
     <li>Run <code>node install http://git.beetroot.se/user/project</code> (or <code>node install-windows http://git.beetroot.se/user/project</code>).</li>
+    <li>In order to install project to specific port add another argument to your process. <code>node install http://git.beetroot.se/user/project 8086</code></li>
 </ul>
 <h2>Usage</h2>
 <ul>
