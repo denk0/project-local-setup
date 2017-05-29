@@ -8,7 +8,7 @@ String.prototype.replaceAll = function(search, replacement) {
 // Get git repo url from arguments
 let gitRepo = process.argv[2];
 // Get port if its passed as argument
-let port = 8081;
+let port = process.argv[3] ? +process.argv[3] : 8081;
 dockerPorts = new Promise((resolve, reject) => {
     let dockerContainers = exec(`docker ps -a`, (error, stdout) => {
         let output = stdout.split('\n');
